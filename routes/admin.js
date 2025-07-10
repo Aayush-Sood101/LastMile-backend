@@ -68,7 +68,7 @@ router.get('/dashboard', walmartAuth, async (req, res) => {
   }
 });
 
-// Get pending community approval requests
+// Get community creation requests (walmart only)
 router.get('/community-requests', walmartAuth, async (req, res) => {
   try {
     const pendingCommunities = await Community.find({ isApproved: false })
@@ -78,6 +78,47 @@ router.get('/community-requests', walmartAuth, async (req, res) => {
     res.json(pendingCommunities);
   } catch (error) {
     console.error('Error fetching community requests:', error.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all communities with membership stats (walmart only)
+router.get('/communities', walmartAuth, async (req, res) => {
+  try {
+    const communities = await Community.find()
+      .populate('admin', 'name email')
+      .select('-membershipRequests');
+    
+    const communitiesWithStats = await Promise.all(communities.map(async (community) => {
+      // Get active cart
+      const activeCart = await CommunityCart.findOne({ 
+        community: community._id,
+        isLocked: false 
+      });
+      
+      // Get upcoming delivery cycle
+      const today = new Date();
+      const upcomingDeliveryCycle = await DeliveryCycle.findOne({
+        community: community._id,
+        scheduledDate: { $gte: today },
+        status: { $in: ['scheduled', 'in-progress'] }
+      }).sort({ scheduledDate: 1 });
+      
+      return {
+        ...community._doc,
+        memberCount: community.members.length,
+        hasActiveCart: !!activeCart,
+        upcomingDelivery: upcomingDeliveryCycle ? {
+          id: upcomingDeliveryCycle._id,
+          date: upcomingDeliveryCycle.scheduledDate,
+          status: upcomingDeliveryCycle.status
+        } : null
+      };
+    }));
+    
+    res.json(communitiesWithStats);
+  } catch (error) {
+    console.error('Error fetching communities with stats:', error.message);
     res.status(500).json({ message: 'Server error' });
   }
 });

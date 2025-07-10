@@ -112,32 +112,35 @@ router.post('/:id/join', auth, async (req, res) => {
       return res.status(404).json({ message: 'Community not found' });
     }
     
-    // Check if user is already a member
+    // Check if already a member
     if (community.members.includes(req.user.id)) {
-      return res.status(400).json({ message: 'Already a member of this community' });
+      return res.status(400).json({ message: 'You are already a member of this community' });
     }
     
-    // Check if user has already requested to join
+    // Check if already requested
     const existingRequest = community.membershipRequests.find(
       request => request.user.toString() === req.user.id
     );
     
     if (existingRequest) {
-      return res.status(400).json({ message: 'Join request already submitted' });
+      return res.status(400).json({ 
+        message: `You have already requested to join this community. Status: ${existingRequest.status}` 
+      });
     }
     
     // Add membership request
     community.membershipRequests.push({
       user: req.user.id,
-      requestDate: Date.now(),
       status: 'pending'
     });
     
     await community.save();
     
-    res.status(200).json({ message: 'Join request submitted successfully' });
+    res.json({ 
+      message: 'Membership request submitted successfully' 
+    });
   } catch (error) {
-    console.error('Error requesting to join community:', error.message);
+    console.error('Error requesting community membership:', error.message);
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ message: 'Community not found' });
     }
@@ -232,6 +235,88 @@ router.get('/:id/carbon-footprint', auth, async (req, res) => {
     console.error('Error fetching community carbon footprint:', error.message);
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ message: 'Community not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get membership requests (community admin only)
+router.get('/:id/membership-requests', communityAdminAuth, async (req, res) => {
+  try {
+    const community = await Community.findById(req.params.id)
+      .populate('membershipRequests.user', 'name email');
+    
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' });
+    }
+    
+    // Verify user is admin of this community
+    if (community.admin.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You are not the admin of this community' });
+    }
+    
+    res.json(community.membershipRequests.filter(request => request.status === 'pending'));
+  } catch (error) {
+    console.error('Error fetching membership requests:', error.message);
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Community not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Handle membership request (community admin only)
+router.put('/:id/membership-requests/:userId', communityAdminAuth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    
+    const community = await Community.findById(req.params.id);
+    
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' });
+    }
+    
+    // Verify user is admin of this community
+    if (community.admin.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You are not the admin of this community' });
+    }
+    
+    // Find the request
+    const requestIndex = community.membershipRequests.findIndex(
+      request => request.user.toString() === req.params.userId
+    );
+    
+    if (requestIndex === -1) {
+      return res.status(404).json({ message: 'Membership request not found' });
+    }
+    
+    // Update request status
+    community.membershipRequests[requestIndex].status = status;
+    
+    // If approved, add user to members
+    if (status === 'approved') {
+      community.members.push(req.params.userId);
+      
+      // Update user's community
+      await User.findByIdAndUpdate(
+        req.params.userId,
+        { community: community._id }
+      );
+    }
+    
+    await community.save();
+    
+    res.json({ 
+      message: `Membership request ${status}` 
+    });
+  } catch (error) {
+    console.error('Error handling membership request:', error.message);
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Community or user not found' });
     }
     res.status(500).json({ message: 'Server error' });
   }
