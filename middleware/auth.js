@@ -44,9 +44,10 @@ const walmartAuth = async (req, res, next) => {
     const user = await User.findById(decoded.id);
 
     if (!user || user.role !== 'walmart') {
+      console.log('walmartAuth: Not authorized as Walmart');
       throw new Error();
     }
-
+    console.log('walmartAuth: Authorized Walmart user', user.email);
     req.token = token;
     req.user = user;
     next();

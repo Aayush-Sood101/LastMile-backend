@@ -1,5 +1,5 @@
 const express = require('express');
-const { auth, adminAuth } = require('../middleware/auth');
+const { auth, adminAuth, walmartAuth } = require('../middleware/auth');
 const Product = require('../models/Product');
 const router = express.Router();
 
@@ -45,8 +45,8 @@ router.get('/category/:category', async (req, res) => {
   }
 });
 
-// Create new product (admin only)
-router.post('/', adminAuth, async (req, res) => {
+// Create new product (walmart admin only)
+router.post('/', walmartAuth, async (req, res) => {
   try {
     const { 
       name, 
@@ -76,8 +76,8 @@ router.post('/', adminAuth, async (req, res) => {
   }
 });
 
-// Update product (admin only)
-router.put('/:id', adminAuth, async (req, res) => {
+// Update product (walmart admin only)
+router.put('/:id', walmartAuth, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     
@@ -116,8 +116,8 @@ router.put('/:id', adminAuth, async (req, res) => {
   }
 });
 
-// Delete product (admin only)
-router.delete('/:id', adminAuth, async (req, res) => {
+// Delete product (walmart admin only)
+router.delete('/:id', walmartAuth, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     
