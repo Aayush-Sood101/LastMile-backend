@@ -62,14 +62,35 @@ const communityAdminAuth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id);
 
-    if (!user || !user.isCommunityAdmin) {
-      throw new Error();
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    // Check if user has isCommunityAdmin flag
+    if (!user.isCommunityAdmin) {
+      // If not, check if they're listed as an admin in any community
+      const Community = require('../models/Community');
+      const adminCommunity = await Community.findOne({ admin: user._id });
+      
+      if (!adminCommunity) {
+        console.log('Auth failed: User is not a community admin', { 
+          userId: user._id,
+          isCommunityAdmin: user.isCommunityAdmin
+        });
+        throw new Error('Not a community admin');
+      }
+      
+      // If they're an admin but don't have the flag, update their record
+      console.log(`Updating user ${user._id} to set isCommunityAdmin flag`);
+      await User.findByIdAndUpdate(user._id, { isCommunityAdmin: true });
+      user.isCommunityAdmin = true;
     }
 
     req.token = token;
     req.user = user;
     next();
   } catch (error) {
+    console.error('Community admin auth error:', error.message);
     res.status(401).json({ message: 'Not authorized as community admin' });
   }
 };

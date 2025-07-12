@@ -37,6 +37,10 @@ const communitySchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
+    reason: {
+      type: String,
+      default: ''
+    },
     requestDate: {
       type: Date,
       default: Date.now
@@ -50,6 +54,11 @@ const communitySchema = new mongoose.Schema({
   isApproved: {
     type: Boolean,
     default: false
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
   },
   totalCarbonFootprintSaved: {
     type: Number,
