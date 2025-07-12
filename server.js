@@ -14,6 +14,7 @@ const orderRoutes = require('./routes/orders');
 const adminRoutes = require('./routes/admin');
 const deliveryCycleRoutes = require('./routes/deliveryCycles');
 const communityCartRoutes = require('./routes/communityCarts');
+const pricingRoutes = require('./routes/pricing');
 
 // Load environment variables
 dotenv.config();
@@ -41,6 +42,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/delivery-cycles', deliveryCycleRoutes);
 app.use('/api/community-carts', communityCartRoutes);
+app.use('/api/pricing', pricingRoutes);
 
 // Root route
 app.get('/', (req, res) => {
