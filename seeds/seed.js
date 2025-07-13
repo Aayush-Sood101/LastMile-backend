@@ -84,7 +84,7 @@ const products = [
     price: 3.99,
     category: 'Groceries',
     communityDiscountPercentage: 10,
-    imageUrl: 'https://example.com/images/bananas.jpg',
+    imageUrl: 'https://www.bbassets.com/media/uploads/p/l/10000025_32-fresho-banana-robusta.jpg',
     carbonFootprint: {
       individual: 2.5,
       community: 0.8
@@ -96,7 +96,7 @@ const products = [
     price: 4.49,
     category: 'Groceries',
     communityDiscountPercentage: 8,
-    imageUrl: 'https://example.com/images/bread.jpg',
+    imageUrl: 'https://www.veganricha.com/wp-content/uploads/2015/07/100-whole-wheat-bread-9272.jpg',
     carbonFootprint: {
       individual: 1.8,
       community: 0.6
@@ -108,7 +108,7 @@ const products = [
     price: 3.79,
     category: 'Groceries',
     communityDiscountPercentage: 5,
-    imageUrl: 'https://example.com/images/almond-milk.jpg',
+    imageUrl: 'https://almondcow.co/cdn/shop/articles/Almond_Milk_2200x.png?v=1620760522',
     carbonFootprint: {
       individual: 2.0,
       community: 0.7
@@ -120,7 +120,7 @@ const products = [
     price: 9.99,
     category: 'Household',
     communityDiscountPercentage: 15,
-    imageUrl: 'https://example.com/images/paper-towels.jpg',
+    imageUrl: 'https://m.media-amazon.com/images/I/51ItL9ls41L._SX522_.jpg',
     carbonFootprint: {
       individual: 3.5,
       community: 1.2
@@ -132,7 +132,7 @@ const products = [
     price: 2.99,
     category: 'Household',
     communityDiscountPercentage: 10,
-    imageUrl: 'https://example.com/images/dish-soap.jpg',
+    imageUrl: 'https://m.media-amazon.com/images/I/61Cq5MJJfaL._SX522_.jpg',
     carbonFootprint: {
       individual: 1.5,
       community: 0.5
@@ -144,7 +144,7 @@ const products = [
     price: 7.49,
     category: 'Health',
     communityDiscountPercentage: 5,
-    imageUrl: 'https://example.com/images/ibuprofen.jpg',
+    imageUrl: 'https://m.media-amazon.com/images/I/51Dw8tGBjWL._SY445_SX342_QL70_FMwebp_.jpg',
     carbonFootprint: {
       individual: 1.0,
       community: 0.3
@@ -156,7 +156,7 @@ const products = [
     price: 3.29,
     category: 'Health',
     communityDiscountPercentage: 8,
-    imageUrl: 'https://example.com/images/toothpaste.jpg',
+    imageUrl: 'https://m.media-amazon.com/images/I/41+91SnYOxL._SY300_SX300_QL70_FMwebp_.jpg',
     carbonFootprint: {
       individual: 0.8,
       community: 0.3
