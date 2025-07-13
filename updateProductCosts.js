@@ -35,13 +35,9 @@ const updateProducts = async () => {
       product.costPrice = parseFloat((product.price * costFactor).toFixed(2));
       updated = true;
       
-      // Set operationalCost to 3-7% of the costPrice - ALWAYS update to ensure it's reasonable
-      const opCostFactor = 0.03 + (Math.random() * 0.04); // Between 3-7%
-      product.operationalCost = parseFloat((product.costPrice * opCostFactor).toFixed(2));
-      // Ensure minimum operational cost is at least 2
-      if (product.operationalCost < 2) {
-        product.operationalCost = 2;
-      }
+      // Set operationalCost to be between 0.15 and 0.3 as requested
+      product.operationalCost = 0.15 + (Math.random() * 0.15); // Between 0.15-0.3
+      product.operationalCost = parseFloat(product.operationalCost.toFixed(2));
       updated = true;
       
       // Set popularityScore if not already set
@@ -79,7 +75,7 @@ const updateProducts = async () => {
     // Sample data with realistic product costs
     const retailPrices = [60, 50, 120]; // Original prices
     const supplierCosts = [40, 35, 80]; // Supplier costs - around 70% of retail price
-    const operationalCosts = [3, 2.5, 5];  // Operational costs - around 5-6% of supplier costs
+    const operationalCosts = [0.25, 0.20, 0.30];  // Operational costs - between 0.15-0.3 as requested
     const quantities = [1000, 2000, 500]; // More realistic quantities
     const targetMargin = 0.15; // 15% - more realistic target margin
     const maxDiscount = 0.25; // 25% - more realistic maximum discount
