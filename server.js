@@ -16,6 +16,7 @@ const deliveryCycleRoutes = require('./routes/deliveryCycles');
 const communityCartRoutes = require('./routes/communityCarts');
 const pricingRoutes = require('./routes/pricing');
 const notificationRoutes = require('./routes/notifications');
+const logisticsRoutes = require('./routes/logistics');
 
 // Load environment variables
 dotenv.config();
@@ -29,8 +30,16 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+// Enhanced CORS configuration
+const corsOptions = {
+  origin: ['http://localhost:3000', 'https://lastmile-frontend.vercel.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
+  credentials: true
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -45,6 +54,7 @@ app.use('/api/delivery-cycles', deliveryCycleRoutes);
 app.use('/api/community-carts', communityCartRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/logistics', logisticsRoutes);
 
 // Root route
 app.get('/', (req, res) => {

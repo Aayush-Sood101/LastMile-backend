@@ -24,6 +24,18 @@ const productSchema = new mongoose.Schema({
     default: 5,
     min: 0
   },
+  // Volume in cubic meters (m³)
+  volume: {
+    type: Number,
+    default: 0.02, // Default volume in m³
+    min: 0
+  },
+  // Weight in kilograms (kg)
+  weight: {
+    type: Number,
+    default: 1.5, // Default weight in kg
+    min: 0
+  },
   discountPercentage: {
     type: Number,
     default: 0,
