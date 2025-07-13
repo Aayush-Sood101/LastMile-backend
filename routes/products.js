@@ -93,7 +93,9 @@ router.put('/:id', walmartAuth, async (req, res) => {
       imageUrl,
       inStock,
       communityDiscountPercentage,
-      carbonFootprint 
+      carbonFootprint,
+      discountPercentage,
+      discountedPrice
     } = req.body;
     
     if (name) product.name = name;
@@ -104,6 +106,8 @@ router.put('/:id', walmartAuth, async (req, res) => {
     if (inStock !== undefined) product.inStock = inStock;
     if (communityDiscountPercentage) product.communityDiscountPercentage = communityDiscountPercentage;
     if (carbonFootprint) product.carbonFootprint = carbonFootprint;
+    if (discountPercentage !== undefined) product.discountPercentage = discountPercentage;
+    if (discountedPrice !== undefined) product.discountedPrice = discountedPrice;
     
     await product.save();
     res.json(product);

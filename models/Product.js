@@ -86,6 +86,18 @@ const productSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Pre-save hook to calculate discountedPrice based on price and discountPercentage
+productSchema.pre('save', function(next) {
+  // If discountPercentage is set, calculate and set the discountedPrice
+  if (this.discountPercentage > 0) {
+    this.discountedPrice = this.price * (1 - this.discountPercentage / 100);
+  } else {
+    // If no discount, discountedPrice equals the regular price
+    this.discountedPrice = this.price;
+  }
+  next();
+});
+
 const Product = mongoose.model('Product', productSchema);
 
 module.exports = Product;
