@@ -30,6 +30,16 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  // Distance from warehouse to delivery point in kilometers
+  deliveryDistance: {
+    type: Number,
+    default: 10 // Default 10 km
+  },
+  // Number of households in the community for this order
+  communitySize: {
+    type: Number,
+    default: 50 // Default 50 households
+  },
   shippingAddress: {
     street: String,
     city: String,
