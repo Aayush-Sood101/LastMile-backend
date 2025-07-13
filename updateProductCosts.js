@@ -23,31 +23,50 @@ const updateProducts = async () => {
     const products = await Product.find({});
     console.log(`Found ${products.length} products to update`);
     
-    // Update each product with costPrice and operationalCost if they don't exist
+    // Update each product with costPrice, operationalCost, and other required fields
     let updateCount = 0;
     
     for (const product of products) {
+      let updated = false;
+      
       // Calculate costPrice as 60-80% of price if not already set
       if (!product.costPrice || product.costPrice <= 0) {
         // Random cost between 60-80% of price
         const costFactor = 0.6 + (Math.random() * 0.2);
         product.costPrice = parseFloat((product.price * costFactor).toFixed(2));
+        updated = true;
       }
       
       // Set operationalCost to 5 if not already set
       if (!product.operationalCost || product.operationalCost <= 0) {
         product.operationalCost = 5;
+        updated = true;
       }
       
       // Set popularityScore if not already set
       if (!product.popularityScore || product.popularityScore <= 0) {
         product.popularityScore = 1.0 + (Math.random() * 4.0); // Random between 1.0 and 5.0
+        updated = true;
+      }
+      
+      // Add default volume if not set
+      if (!product.volume || product.volume <= 0) {
+        product.volume = 0.01 + (Math.random() * 0.04); // Random between 0.01 and 0.05 cubic meters
+        updated = true;
+      }
+      
+      // Add default weight if not set
+      if (!product.weight || product.weight <= 0) {
+        product.weight = 0.5 + (Math.random() * 2.5); // Random between 0.5 and 3.0 kg
+        updated = true;
       }
       
       // Save the updated product
-      await product.save();
-      updateCount++;
-      console.log(`Updated product: ${product.name} - Cost: $${product.costPrice}, Price: $${product.price}`);
+      if (updated) {
+        await product.save();
+        updateCount++;
+        console.log(`Updated product: ${product.name} - Cost: ₹${product.costPrice}, Price: ₹${product.price}, Volume: ${product.volume}m³, Weight: ${product.weight}kg`);
+      }
     }
     
     console.log(`Updated ${updateCount} products successfully`);

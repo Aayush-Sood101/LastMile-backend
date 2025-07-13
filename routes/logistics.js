@@ -107,14 +107,26 @@ function chaoticInitialization(numIterations, numDimensions, maxDiscount, quanti
   let bestDiscounts = null;
   let bestObjectiveValue = -Infinity;
   
+  console.log('Starting chaotic initialization with parameters:', {
+    numIterations,
+    numDimensions,
+    maxDiscount,
+    targetMargin,
+    transportCost
+  });
+  
   for (let k = 0; k < numIterations; k++) {
     c = logisticMap(c);
     
-    // Create uniform discounts for all products
-    const discounts = Array(numDimensions).fill(0 + (maxDiscount - 0) * c);
+    // Create different discount for each product, not uniform
+    const discounts = Array(numDimensions).fill(0).map(() => {
+      c = logisticMap(c);
+      return maxDiscount * c;
+    });
     
     // Check if margin constraint is satisfied
-    if (marginConstraint(discounts, quantities, retailPrices, supplierCosts, operationalCosts, targetMargin, transportCost) >= 0) {
+    const constraintValue = marginConstraint(discounts, quantities, retailPrices, supplierCosts, operationalCosts, targetMargin, transportCost);
+    if (constraintValue >= 0) {
       const objValue = objective(discounts, quantities);
       
       if (objValue > bestObjectiveValue) {
@@ -124,6 +136,28 @@ function chaoticInitialization(numIterations, numDimensions, maxDiscount, quanti
     }
   }
   
+  // If no feasible solution found, try with minimal discounts
+  if (!bestDiscounts) {
+    console.log('No solution found in chaotic initialization, trying minimal discounts');
+    // Try a more conservative approach with very small discounts
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const smallDiscounts = Array(numDimensions).fill(0).map(() => Math.random() * 0.05); // 0-5% discount
+      
+      if (marginConstraint(smallDiscounts, quantities, retailPrices, supplierCosts, operationalCosts, targetMargin, transportCost) >= 0) {
+        console.log('Found feasible solution with minimal discounts');
+        return smallDiscounts;
+      }
+    }
+    
+    // If all else fails, try zero discounts
+    const zeroDiscounts = Array(numDimensions).fill(0);
+    if (marginConstraint(zeroDiscounts, quantities, retailPrices, supplierCosts, operationalCosts, targetMargin, transportCost) >= 0) {
+      console.log('Only zero discounts are feasible');
+      return zeroDiscounts;
+    }
+  }
+  
+  console.log('Chaotic initialization result:', bestDiscounts ? 'Found solution' : 'No solution found');
   return bestDiscounts;
 }
 
@@ -217,12 +251,14 @@ function patternSearch(initialDiscounts, quantities, retailPrices, supplierCosts
 /**
  * @route   POST /api/logistics/optimize
  * @desc    Optimize discounts with logistics constraints
- * @access  Private (admin)
+ * @access  Private (admin or walmart)
  */
 router.post('/optimize', auth, async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
+    console.log('Logistics optimization requested by user:', req.user.id, 'role:', req.user.role);
+    
+    // Check if user is admin or walmart
+    if (req.user.role !== 'admin' && req.user.role !== 'walmart') {
       return res.status(403).json({ msg: 'Not authorized to access this resource' });
     }
 
@@ -239,23 +275,227 @@ router.post('/optimize', auth, async (req, res) => {
       truckVolume = 15.0,
       truckWeight = 3000.0
     } = req.body;
+    
+    console.log('Received optimization request with parameters:', { 
+      numProducts: productIds?.length, 
+      targetMargin, 
+      maxDiscount, 
+      distanceKm,
+      costPerKm,
+      numHouseholds
+    });
 
-    // Validate inputs
-    if (!productIds || !quantities || !volumePerUnit || !weightPerUnit) {
-      return res.status(400).json({ msg: 'Missing required fields' });
+    // VALIDATION START
+    // 1. Check for required arrays
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+      console.error('Missing or invalid productIds in request:', productIds);
+      return res.status(400).json({ 
+        msg: 'Missing or invalid required field: productIds',
+        details: 'Must be a non-empty array'
+      });
+    }
+    
+    if (!quantities || !Array.isArray(quantities) || quantities.length === 0) {
+      console.error('Missing or invalid quantities in request:', quantities);
+      return res.status(400).json({ 
+        msg: 'Missing or invalid required field: quantities',
+        details: 'Must be a non-empty array'
+      });
+    }
+    
+    if (!volumePerUnit || !Array.isArray(volumePerUnit) || volumePerUnit.length === 0) {
+      console.error('Missing or invalid volumePerUnit in request:', volumePerUnit);
+      return res.status(400).json({ 
+        msg: 'Missing or invalid required field: volumePerUnit',
+        details: 'Must be a non-empty array'
+      });
+    }
+    
+    if (!weightPerUnit || !Array.isArray(weightPerUnit) || weightPerUnit.length === 0) {
+      console.error('Missing or invalid weightPerUnit in request:', weightPerUnit);
+      return res.status(400).json({ 
+        msg: 'Missing or invalid required field: weightPerUnit',
+        details: 'Must be a non-empty array'
+      });
     }
 
+    // 2. Check array lengths match
     if (productIds.length !== quantities.length || 
         productIds.length !== volumePerUnit.length || 
         productIds.length !== weightPerUnit.length) {
-      return res.status(400).json({ msg: 'Arrays must be of equal length' });
+      console.error('Array length mismatch:', {
+        productIdsLength: productIds.length,
+        quantitiesLength: quantities.length,
+        volumePerUnitLength: volumePerUnit.length,
+        weightPerUnitLength: weightPerUnit.length
+      });
+      return res.status(400).json({ 
+        msg: 'Arrays must be of equal length',
+        details: {
+          productIdsLength: productIds.length,
+          quantitiesLength: quantities.length,
+          volumePerUnitLength: volumePerUnit.length,
+          weightPerUnitLength: weightPerUnit.length
+        }
+      });
     }
+    
+    // 3. Validate ObjectId format for productIds
+    const invalidIds = productIds.filter(id => !id.match(/^[0-9a-fA-F]{24}$/));
+    if (invalidIds.length > 0) {
+      console.error('Invalid MongoDB ObjectId format in productIds:', invalidIds);
+      return res.status(400).json({ 
+        msg: 'Invalid product ID format',
+        details: 'All productIds must be valid MongoDB ObjectIds',
+        invalidIds
+      });
+    }
+    
+    // 4. Validate numeric arrays
+    const invalidQuantities = quantities.filter(q => typeof q !== 'number' || isNaN(q) || q <= 0);
+    if (invalidQuantities.length > 0) {
+      console.error('Invalid quantities:', invalidQuantities);
+      return res.status(400).json({ 
+        msg: 'Invalid quantities',
+        details: 'All quantities must be positive numbers'
+      });
+    }
+    
+    const invalidVolumes = volumePerUnit.filter(v => typeof v !== 'number' || isNaN(v) || v <= 0);
+    if (invalidVolumes.length > 0) {
+      console.error('Invalid volumePerUnit values:', invalidVolumes);
+      return res.status(400).json({ 
+        msg: 'Invalid volumePerUnit values',
+        details: 'All volumePerUnit values must be positive numbers'
+      });
+    }
+    
+    const invalidWeights = weightPerUnit.filter(w => typeof w !== 'number' || isNaN(w) || w <= 0);
+    if (invalidWeights.length > 0) {
+      console.error('Invalid weightPerUnit values:', invalidWeights);
+      return res.status(400).json({ 
+        msg: 'Invalid weightPerUnit values',
+        details: 'All weightPerUnit values must be positive numbers'
+      });
+    }
+    
+    // 5. Validate scalar parameters
+    if (typeof targetMargin !== 'number' || isNaN(targetMargin) || targetMargin < 0 || targetMargin > 1) {
+      console.error('Invalid targetMargin:', targetMargin);
+      return res.status(400).json({ 
+        msg: 'Invalid targetMargin',
+        details: 'targetMargin must be a number between 0 and 1'
+      });
+    }
+    
+    if (typeof maxDiscount !== 'number' || isNaN(maxDiscount) || maxDiscount < 0 || maxDiscount > 1) {
+      console.error('Invalid maxDiscount:', maxDiscount);
+      return res.status(400).json({ 
+        msg: 'Invalid maxDiscount',
+        details: 'maxDiscount must be a number between 0 and 1'
+      });
+    }
+    
+    if (typeof distanceKm !== 'number' || isNaN(distanceKm) || distanceKm <= 0) {
+      console.error('Invalid distanceKm:', distanceKm);
+      return res.status(400).json({ 
+        msg: 'Invalid distanceKm',
+        details: 'distanceKm must be a positive number'
+      });
+    }
+    
+    if (typeof costPerKm !== 'number' || isNaN(costPerKm) || costPerKm <= 0) {
+      console.error('Invalid costPerKm:', costPerKm);
+      return res.status(400).json({ 
+        msg: 'Invalid costPerKm',
+        details: 'costPerKm must be a positive number'
+      });
+    }
+    
+    if (typeof numHouseholds !== 'number' || isNaN(numHouseholds) || numHouseholds <= 0) {
+      console.error('Invalid numHouseholds:', numHouseholds);
+      return res.status(400).json({ 
+        msg: 'Invalid numHouseholds',
+        details: 'numHouseholds must be a positive number'
+      });
+    }
+    // VALIDATION END
 
     // Fetch products from database
-    const products = await Product.find({ _id: { $in: productIds } });
-    
-    if (products.length !== productIds.length) {
-      return res.status(400).json({ msg: 'Some products not found' });
+    let products;
+    try {
+      console.log('Fetching products with IDs:', productIds);
+      products = await Product.find({ _id: { $in: productIds } });
+      console.log(`Found ${products.length} products out of ${productIds.length} requested`);
+      
+      if (products.length === 0) {
+        return res.status(400).json({
+          msg: 'No products found with the provided IDs',
+          productIds
+        });
+      }
+      
+      if (products.length !== productIds.length) {
+        // Find which product IDs were not found
+        const foundIds = products.map(p => p._id.toString());
+        const missingIds = productIds.filter(id => !foundIds.includes(id));
+        console.error('Missing product IDs:', missingIds);
+        return res.status(400).json({ 
+          msg: 'Some products not found', 
+          missingIds,
+          foundIds
+        });
+      }
+      
+      // Validate that all products have the necessary price fields
+      // If missing, apply defaults
+      products = products.map(product => {
+        const updatedProduct = { ...product.toObject() };
+        
+        // Check price
+        if (typeof updatedProduct.price !== 'number' || isNaN(updatedProduct.price) || updatedProduct.price <= 0) {
+          console.warn(`Product ${updatedProduct._id} has invalid price: ${updatedProduct.price}`);
+          return null;
+        }
+        
+        // Check/default costPrice
+        if (typeof updatedProduct.costPrice !== 'number' || isNaN(updatedProduct.costPrice) || updatedProduct.costPrice <= 0) {
+          console.warn(`Product ${updatedProduct._id} has invalid costPrice: ${updatedProduct.costPrice}, using default`);
+          updatedProduct.costPrice = updatedProduct.price * 0.7; // Default to 70% of price
+        }
+        
+        // Check/default operationalCost
+        if (typeof updatedProduct.operationalCost !== 'number' || isNaN(updatedProduct.operationalCost) || updatedProduct.operationalCost < 0) {
+          console.warn(`Product ${updatedProduct._id} has invalid operationalCost: ${updatedProduct.operationalCost}, using default`);
+          updatedProduct.operationalCost = 5; // Default operational cost
+        }
+        
+        return updatedProduct;
+      }).filter(p => p !== null);
+      
+      if (products.length === 0) {
+        return res.status(400).json({
+          msg: 'All products have invalid price data',
+          productIds
+        });
+      }
+      
+      if (products.length !== productIds.length) {
+        const validIds = products.map(p => p._id.toString());
+        const invalidIds = productIds.filter(id => !validIds.includes(id));
+        console.error('Products with invalid price data:', invalidIds);
+        return res.status(400).json({
+          msg: 'Some products have invalid price data',
+          invalidIds
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      return res.status(500).json({ 
+        msg: 'Error fetching products from database', 
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
 
     // Prepare data for optimization
@@ -272,10 +512,44 @@ router.post('/optimize', auth, async (req, res) => {
       truckWeight
     );
     
+    console.log('Logistics calculation:', {
+      numTrucks,
+      distanceKm,
+      costPerKm,
+      transportCost: numTrucks * costPerKm * distanceKm
+    });
+    
     // Calculate transport cost
     const transportCost = numTrucks * costPerKm * distanceKm;
     
+    // Check if optimization is feasible with zero discounts
+    const zeroDiscounts = Array(productIds.length).fill(0);
+    const zeroMarginConstraint = marginConstraint(
+      zeroDiscounts, 
+      quantities,
+      retailPrices,
+      supplierCosts,
+      operationalCosts,
+      targetMargin,
+      transportCost
+    );
+    
+    if (zeroMarginConstraint < 0) {
+      console.error('Optimization is infeasible even with zero discounts:', {
+        zeroMarginConstraint,
+        targetMargin,
+        transportCost
+      });
+      
+      return res.status(400).json({
+        success: false,
+        msg: "Optimization infeasible with current parameters",
+        details: "The target margin cannot be achieved even with zero discounts. Try reducing the target margin or adjusting other parameters."
+      });
+    }
+    
     // Run optimization algorithm
+    console.log('Starting chaotic initialization phase...');
     const numIterStage1 = 1000;
     const initialDiscounts = chaoticInitialization(
       numIterStage1, 
@@ -290,141 +564,198 @@ router.post('/optimize', auth, async (req, res) => {
     );
     
     if (!initialDiscounts) {
+      console.error('No feasible solution found in initialization stage', {
+        targetMargin,
+        maxDiscount,
+        transportCost
+      });
+      
       return res.status(400).json({
         success: false,
-        message: "No feasible solution found in initialization stage"
+        msg: "No feasible solution found in initialization stage",
+        details: "Try reducing the target margin or increasing the maximum allowable discount."
       });
     }
     
     // Run pattern search
-    const optimalDiscounts = patternSearch(
-      initialDiscounts,
-      quantities,
-      retailPrices,
-      supplierCosts,
-      operationalCosts,
-      targetMargin,
-      maxDiscount,
-      transportCost
-    );
+    console.log('Starting pattern search phase...');
+    let optimalDiscounts;
+    try {
+      optimalDiscounts = patternSearch(
+        initialDiscounts,
+        quantities,
+        retailPrices,
+        supplierCosts,
+        operationalCosts,
+        targetMargin,
+        maxDiscount,
+        transportCost
+      );
+      
+      if (!optimalDiscounts) {
+        throw new Error('Pattern search failed to produce a solution');
+      }
+    } catch (error) {
+      console.error('Optimization algorithm error:', error);
+      return res.status(500).json({
+        success: false,
+        msg: "Optimization algorithm error",
+        error: error.message
+      });
+    }
     
-    // Calculate final results
+    // Calculate final prices and profits
     const finalPrices = retailPrices.map((p, i) => p * (1 - optimalDiscounts[i]));
-    const profitPerProduct = finalPrices.map((p, i) => 
+    const finalProfits = finalPrices.map((p, i) => 
       (p - supplierCosts[i] - operationalCosts[i]) * quantities[i]
     );
-    
-    const totalProfit = profitPerProduct.reduce((sum, p) => sum + p, 0) - transportCost;
+    const totalProfit = finalProfits.reduce((sum, p) => sum + p, 0);
     const totalRevenue = finalPrices.reduce((sum, p, i) => sum + p * quantities[i], 0);
     const finalMargin = totalRevenue > 0 ? totalProfit / totalRevenue : 0;
     
+    // Validate the solution
+    if (finalMargin < targetMargin * 0.95) {
+      console.warn('Optimization warning: Final margin is significantly below target', {
+        targetMargin,
+        finalMargin,
+        difference: targetMargin - finalMargin
+      });
+    }
+    
     // Calculate CO2 savings
-    const co2Savings = calculateCO2Savings({
+    console.log('Calculating CO2 emissions savings...');
+    const emissions = calculateCO2Savings({
       numHouseholds,
       bulkDistanceKm: distanceKm,
       numTrucks
     });
     
-    // Prepare detailed results
-    const productDetails = [];
-    for (let i = 0; i < optimalDiscounts.length; i++) {
-      productDetails.push({
-        productId: productIds[i],
-        name: products[i].name,
-        discount: optimalDiscounts[i],
-        finalPrice: finalPrices[i],
-        profit: profitPerProduct[i],
-        quantity: quantities[i],
-        volume: volumePerUnit[i],
-        weight: weightPerUnit[i],
-        supplierCost: supplierCosts[i],
-        operationalCost: operationalCosts[i],
-        retailPrice: retailPrices[i]
-      });
-    }
+    // Map results back to product information
+    const productDetails = products.map((product, i) => ({
+      id: product._id,
+      name: product.name,
+      retailPrice: retailPrices[i],
+      supplierCost: supplierCosts[i],
+      operationalCost: operationalCosts[i],
+      discount: optimalDiscounts[i],
+      finalPrice: finalPrices[i],
+      quantity: quantities[i],
+      profit: finalProfits[i]
+    }));
     
-    return res.json({
+    // Prepare response
+    const result = {
       success: true,
       optimization: {
-        discounts: optimalDiscounts,
-        finalPrices,
-        profitPerProduct,
-        totalProfit,
+        productDetails,
         totalRevenue,
+        totalProfit,
         finalMargin,
         transportCost,
-        productDetails
+        targetMargin, // Include the target for reference
+        maxDiscount   // Include the max discount for reference
       },
       logistics: {
         numTrucks,
         distanceKm,
         costPerKm,
-        totalTransportCost: transportCost
+        totalTransportCost: transportCost,
+        totalVolume: quantities.reduce((sum, q, i) => sum + q * volumePerUnit[i], 0),
+        totalWeight: quantities.reduce((sum, q, i) => sum + q * weightPerUnit[i], 0)
       },
-      emissions: co2Savings
-    });
+      emissions
+    };
     
-  } catch (err) {
-    console.error('Error in logistics optimization:', err.message);
-    res.status(500).send('Server Error');
+    console.log('Optimization successful');
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error in logistics optimization:', error);
+    
+    // Provide more detailed error message based on error type
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        msg: 'Validation error', 
+        error: error.message,
+        details: error.errors 
+      });
+    } else if (error.name === 'CastError') {
+      return res.status(400).json({ 
+        msg: 'Invalid ID format', 
+        error: error.message,
+        details: error.path 
+      });
+    } else if (error.code === 11000) {
+      return res.status(400).json({ 
+        msg: 'Duplicate key error', 
+        error: error.message,
+        details: error.keyValue 
+      });
+    } else {
+      return res.status(500).json({ 
+        msg: 'Server error', 
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
   }
 });
 
 /**
- * @route   GET /api/logistics/co2-savings
- * @desc    Calculate CO2 savings for a community order
+ * @route   GET /api/logistics/co2-savings/:orderId
+ * @desc    Calculate CO2 savings for an order
  * @access  Private
  */
 router.get('/co2-savings/:orderId', auth, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId)
-      .populate('items.product');
+    const { orderId } = req.params;
+    const { distanceKm = 10, numHouseholds = 50 } = req.query;
+    
+    // Find the order
+    const order = await Order.findById(orderId).populate('items.product');
     
     if (!order) {
       return res.status(404).json({ msg: 'Order not found' });
     }
     
-    // Default values if not provided
-    const {
-      numHouseholds = order.communitySize || 50,
-      indivDistanceKm = 4,
-      bulkDistanceKm = order.deliveryDistance || 10,
-      truckVolume = 15.0,
-      truckWeight = 3000.0
-    } = req.query;
+    // Calculate volume and weight for the order
+    let totalVolume = 0;
+    let totalWeight = 0;
     
-    // Extract quantities, volumes and weights from order
-    const quantities = order.items.map(item => item.quantity);
-    const volumePerUnit = order.items.map(item => item.product.volume || 0.02);
-    const weightPerUnit = order.items.map(item => item.product.weight || 1.5);
+    order.items.forEach(item => {
+      // Default values if not specified
+      const volume = item.product.volume || 0.02; // cubic meters
+      const weight = item.product.weight || 1.5; // kg
+      
+      totalVolume += item.quantity * volume;
+      totalWeight += item.quantity * weight;
+    });
     
-    // Calculate number of trucks
+    // Calculate trucks required
     const numTrucks = calculateTrucksRequired(
-      quantities,
-      volumePerUnit,
-      weightPerUnit,
-      truckVolume,
-      truckWeight
+      [1],
+      [totalVolume],
+      [totalWeight]
     );
     
     // Calculate CO2 savings
-    const co2Savings = calculateCO2Savings({
+    const emissions = calculateCO2Savings({
       numHouseholds: parseInt(numHouseholds),
-      indivDistanceKm: parseFloat(indivDistanceKm),
-      bulkDistanceKm: parseFloat(bulkDistanceKm),
+      bulkDistanceKm: parseFloat(distanceKm),
       numTrucks
     });
     
     res.json({
       success: true,
-      orderId: req.params.orderId,
+      orderId,
+      totalVolume,
+      totalWeight,
       numTrucks,
-      co2Savings
+      emissions
     });
-    
-  } catch (err) {
-    console.error('Error calculating CO2 savings:', err.message);
-    res.status(500).send('Server Error');
+  } catch (error) {
+    console.error('Error calculating CO2 savings:', error);
+    res.status(500).json({ msg: 'Server error', error: error.message });
   }
 });
 
