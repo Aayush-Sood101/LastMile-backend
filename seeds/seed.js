@@ -82,6 +82,8 @@ const products = [
     name: 'Organic Bananas',
     description: 'Fresh organic bananas, bundle of 5',
     price: 3.99,
+    costPrice: 2.79, // ~70% of retail price
+    operationalCost: 0.25, // Low operational cost as requested
     category: 'Groceries',
     communityDiscountPercentage: 10,
     imageUrl: 'https://www.bbassets.com/media/uploads/p/l/10000025_32-fresho-banana-robusta.jpg',
@@ -94,6 +96,8 @@ const products = [
     name: 'Whole Wheat Bread',
     description: 'Freshly baked whole wheat bread',
     price: 4.49,
+    costPrice: 3.14, // ~70% of retail price
+    operationalCost: 0.20, // Low operational cost as requested
     category: 'Groceries',
     communityDiscountPercentage: 8,
     imageUrl: 'https://www.veganricha.com/wp-content/uploads/2015/07/100-whole-wheat-bread-9272.jpg',
@@ -106,6 +110,8 @@ const products = [
     name: 'Almond Milk',
     description: 'Unsweetened almond milk, 64 oz',
     price: 3.79,
+    costPrice: 2.65, // ~70% of retail price
+    operationalCost: 0.18, // Low operational cost as requested
     category: 'Groceries',
     communityDiscountPercentage: 5,
     imageUrl: 'https://almondcow.co/cdn/shop/articles/Almond_Milk_2200x.png?v=1620760522',
@@ -118,6 +124,8 @@ const products = [
     name: 'Paper Towels',
     description: 'Pack of 6 rolls, select-a-size',
     price: 9.99,
+    costPrice: 6.99, // ~70% of retail price
+    operationalCost: 0.30, // Low operational cost as requested
     category: 'Household',
     communityDiscountPercentage: 15,
     imageUrl: 'https://m.media-amazon.com/images/I/51ItL9ls41L._SX522_.jpg',
@@ -130,6 +138,8 @@ const products = [
     name: 'Dish Soap',
     description: 'Liquid dish soap, lemon scent, 32 oz',
     price: 2.99,
+    costPrice: 2.09, // ~70% of retail price
+    operationalCost: 0.15, // Low operational cost as requested
     category: 'Household',
     communityDiscountPercentage: 10,
     imageUrl: 'https://m.media-amazon.com/images/I/61Cq5MJJfaL._SX522_.jpg',
@@ -142,6 +152,8 @@ const products = [
     name: 'Ibuprofen',
     description: 'Pain reliever/fever reducer, 100 tablets',
     price: 7.49,
+    costPrice: 5.24, // ~70% of retail price
+    operationalCost: 0.25, // Low operational cost as requested
     category: 'Health',
     communityDiscountPercentage: 5,
     imageUrl: 'https://m.media-amazon.com/images/I/51Dw8tGBjWL._SY445_SX342_QL70_FMwebp_.jpg',
@@ -154,6 +166,8 @@ const products = [
     name: 'Toothpaste',
     description: 'Mint flavor, cavity protection, 5.2 oz',
     price: 3.29,
+    costPrice: 2.30, // ~70% of retail price
+    operationalCost: 0.17, // Low operational cost as requested
     category: 'Health',
     communityDiscountPercentage: 8,
     imageUrl: 'https://m.media-amazon.com/images/I/41+91SnYOxL._SY300_SX300_QL70_FMwebp_.jpg',
