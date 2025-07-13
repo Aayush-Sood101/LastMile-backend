@@ -29,19 +29,20 @@ const updateProducts = async () => {
     for (const product of products) {
       let updated = false;
       
-      // Calculate costPrice as 60-80% of price if not already set
-      if (!product.costPrice || product.costPrice <= 0) {
-        // Random cost between 60-80% of price
-        const costFactor = 0.6 + (Math.random() * 0.2);
-        product.costPrice = parseFloat((product.price * costFactor).toFixed(2));
-        updated = true;
-      }
+      // Calculate costPrice as 60-80% of price - ALWAYS update to ensure it's less than retail price
+      // Random cost between 60-80% of price
+      const costFactor = 0.6 + (Math.random() * 0.2);
+      product.costPrice = parseFloat((product.price * costFactor).toFixed(2));
+      updated = true;
       
-      // Set operationalCost to 5 if not already set
-      if (!product.operationalCost || product.operationalCost <= 0) {
-        product.operationalCost = 5;
-        updated = true;
+      // Set operationalCost to 3-7% of the costPrice - ALWAYS update to ensure it's reasonable
+      const opCostFactor = 0.03 + (Math.random() * 0.04); // Between 3-7%
+      product.operationalCost = parseFloat((product.costPrice * opCostFactor).toFixed(2));
+      // Ensure minimum operational cost is at least 2
+      if (product.operationalCost < 2) {
+        product.operationalCost = 2;
       }
+      updated = true;
       
       // Set popularityScore if not already set
       if (!product.popularityScore || product.popularityScore <= 0) {
@@ -75,13 +76,13 @@ const updateProducts = async () => {
     console.log("\n======== Testing Optimization Algorithm ========");
     console.log("This simulates the advanced pattern search algorithm from Python");
     
-    // Sample data from the Python example
-    const supplierCosts = [40, 30, 80];
-    const operationalCosts = [5, 4, 6];
-    const retailPrices = [60, 50, 120];
-    const quantities = [17722674, 30556467, 200365476574];
-    const targetMargin = 0.2; // 20%
-    const maxDiscount = 0.5; // 50%
+    // Sample data with realistic product costs
+    const retailPrices = [60, 50, 120]; // Original prices
+    const supplierCosts = [40, 35, 80]; // Supplier costs - around 70% of retail price
+    const operationalCosts = [3, 2.5, 5];  // Operational costs - around 5-6% of supplier costs
+    const quantities = [1000, 2000, 500]; // More realistic quantities
+    const targetMargin = 0.15; // 15% - more realistic target margin
+    const maxDiscount = 0.25; // 25% - more realistic maximum discount
     
     // Function to calculate profit margin
     const calculateMargin = (discounts) => {
